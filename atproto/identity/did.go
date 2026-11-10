@@ -14,6 +14,16 @@ import (
 	"github.com/bluesky-social/indigo/atproto/syntax"
 )
 
+// DIDHTTPError records an unexpected HTTP response while resolving a DID.
+type DIDHTTPError struct {
+	StatusCode int
+	operation  string
+}
+
+func (e *DIDHTTPError) Error() string {
+	return fmt.Sprintf("%s status %d", e.operation, e.StatusCode)
+}
+
 // Resolves a DID to a parsed `DIDDocument` struct.
 //
 // This method does not bi-directionally verify handles. Most atproto-specific code should use the `identity.Directory` interface ("Lookup" methods), which implement that check by default, and provide more ergonomic helpers for working with atproto-relevant information in DID documents.
@@ -121,7 +131,7 @@ func (d *BaseDirectory) resolveDIDWeb(ctx context.Context, did syntax.DID) ([]by
 	}
 	if resp.StatusCode != http.StatusOK {
 		io.Copy(io.Discard, resp.Body)
-		return nil, fmt.Errorf("%w: did:web HTTP status %d", ErrDIDResolutionFailed, resp.StatusCode)
+		return nil, fmt.Errorf("%w: %w", ErrDIDResolutionFailed, &DIDHTTPError{StatusCode: resp.StatusCode, operation: "did:web HTTP"})
 	}
 
 	return io.ReadAll(resp.Body)
@@ -162,7 +172,7 @@ func (d *BaseDirectory) resolveDIDPLC(ctx context.Context, did syntax.DID) ([]by
 	}
 	if resp.StatusCode != http.StatusOK {
 		io.Copy(io.Discard, resp.Body)
-		return nil, fmt.Errorf("%w: PLC directory status %d", ErrDIDResolutionFailed, resp.StatusCode)
+		return nil, fmt.Errorf("%w: %w", ErrDIDResolutionFailed, &DIDHTTPError{StatusCode: resp.StatusCode, operation: "PLC directory"})
 	}
 
 	return io.ReadAll(resp.Body)
